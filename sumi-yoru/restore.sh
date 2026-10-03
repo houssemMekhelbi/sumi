@@ -136,7 +136,7 @@ import re, sys
 path, line, name = sys.argv[1:]
 text = open(path, encoding="utf-8").read().splitlines()
 src = re.compile(r'^\[ -r "\$HOME/\.config/zsh/[\w-]+\.zsh-theme" \] && source ')
-note = re.compile(r"^# \w+ prompt, completion colours and plugins\.$")
+note = re.compile(r"^# [\w-]+ prompt, completion colours and plugins\.$")
 out, done = [], False
 for l in text:
     if src.match(l):
