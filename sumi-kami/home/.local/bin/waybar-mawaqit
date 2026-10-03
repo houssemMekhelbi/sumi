@@ -1,0 +1,334 @@
+#!/usr/bin/env python3
+"""Next prayer for Waybar, from the local mawaqit-api container.
+
+Bar:      PARIS      ASR 17:09 · 2h 14m        (next adhan)
+          PARIS      ASR IQAMA 17:17 · 6m      (between adhan and iqama)
+Tooltip:  the day's table, adhan + iqama, next row in gold; mosque list.
+
+Mosques:  ~/.config/mawaqit/mosques, one per line: "<slug> | <short label>"
+          (slug from mawaqit.net/en/<slug>). Which one is shown lives in
+          $XDG_STATE_HOME/mawaqit/current.
+Commands: waybar-mawaqit [next|prev|open]  (switch mosque / open its page;
+          switching signals Waybar with SIGRTMIN+9)
+          waybar-mawaqit watch    (mawaqit-alerts.service: at each adhan and
+          iqama of the current mosque, run ~/.local/bin/mawaqit-alert)
+          waybar-mawaqit test-alert [adhan|iqama]
+
+Times are shown on the mosque's own clock; countdowns are absolute.
+The API (quadlet mawaqit-api.container, 127.0.0.1:8765) is hit at most once a
+day per mosque; the whole year's calendar is cached, so a stopped container
+only makes the tooltip say "cached".
+"""
+
+import json
+import os
+import subprocess
+import sys
+import urllib.request
+from datetime import date, datetime, timedelta
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+API = os.environ.get("MAWAQIT_API", "http://127.0.0.1:8765/api/v1")
+CONF = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")) / "mawaqit" / "mosques"
+STATE = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")) / "mawaqit" / "current"
+CACHE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "mawaqit"
+SIGNAL = 9
+
+# Sumi kami: labels muted, attention (soon, next row) vermilion, text ink, IQAMA in ink.
+BRASS, GOLD, IVORY, MUTED, EMERALD = "#66615A", "#B3371F", "#16140F", "#66615A", "#3A3733"
+SOON = timedelta(minutes=15)
+
+# calendar row order: fajr, shuruq, dhuhr, asr, maghrib, isha
+NAMES = [("FAJR", "Fajr", "الفجر"), ("SHURUQ", "Shuruq", "الشروق"),
+         ("DHUHR", "Dhuhr", "الظهر"), ("ASR", "Asr", "العصر"),
+         ("MAGHRIB", "Maghrib", "المغرب"), ("ISHA", "Isha", "العشاء")]
+JUMUA = ("JUMUʿA", "Jumuʿa", "الجمعة")
+
+
+def emit(text, tooltip="", cls=""):
+    print(json.dumps({"text": text, "tooltip": tooltip, "class": cls}))
+    sys.exit(0)
+
+
+def tag(label, color=BRASS):
+    return f"<span color='{color}' size='small' letter_spacing='1000'>{label}</span>"
+
+
+def esc(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def mosques():
+    """[(slug, label)] from the config file."""
+    out = []
+    try:
+        lines = CONF.read_text().splitlines()
+    except OSError:
+        return out
+    for line in lines:
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        slug, _, label = line.partition("|")
+        slug, label = slug.strip(), label.strip()
+        out.append((slug, label or slug))
+    return out
+
+
+def current_index(n):
+    try:
+        return int(STATE.read_text().strip()) % n
+    except (OSError, ValueError):
+        return 0
+
+
+def switch(step):
+    ms = mosques()
+    if not ms:
+        return
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(str((current_index(len(ms)) + step) % len(ms)))
+    subprocess.run(["pkill", f"-RTMIN+{SIGNAL}", "-x", "waybar"], check=False)
+
+
+def load(slug):
+    """Raw mosque data, refreshed at most once per local day."""
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    path = CACHE_DIR / f"{slug}.json"
+    cached = None
+    if path.exists():
+        try:
+            cached = json.loads(path.read_text())
+        except ValueError:
+            cached = None
+    if cached and cached.get("fetched") == date.today().isoformat():
+        return cached["data"], False
+    try:
+        with urllib.request.urlopen(f"{API}/{slug}/", timeout=8) as r:
+            data = json.load(r)["rawdata"]
+    except Exception:
+        if cached:
+            return cached["data"], True
+        raise
+    tmp = path.with_suffix(f".{os.getpid()}.tmp")
+    tmp.write_text(json.dumps({"fetched": date.today().isoformat(), "data": data}))
+    tmp.replace(path)
+    return data, False
+
+
+def day_rows(data, day, tz):
+    """[(names, adhan dt, iqama dt|None)] for one day, on the mosque's clock."""
+    try:
+        times = data["calendar"][day.month - 1][str(day.day)]
+    except (KeyError, IndexError):
+        return []
+    iqamas = None
+    if data.get("iqamaEnabled", True):
+        try:
+            iqamas = data["iqamaCalendar"][day.month - 1][str(day.day)]
+        except (KeyError, IndexError, TypeError):
+            pass
+
+    def at(hhmm):
+        h, m = map(int, hhmm.split(":"))
+        return datetime(day.year, day.month, day.day, h, m, tzinfo=tz)
+
+    friday = day.weekday() == 4 and data.get("jumua") and not data.get("jumuaAsDuhr")
+    rows = []
+    for i, hhmm in enumerate(times):
+        names, adhan, iqama = NAMES[i], at(hhmm), None
+        if i == 2 and friday:
+            names, adhan = JUMUA, at(data["jumua"])
+        elif i != 1 and iqamas:
+            spec = str(iqamas[i if i == 0 else i - 1]).strip()
+            try:
+                if spec.startswith("+"):
+                    iqama = adhan + timedelta(minutes=int(spec[1:]))
+                elif ":" in spec:
+                    iqama = at(spec)
+            except ValueError:
+                pass
+        rows.append((names, adhan, iqama))
+    return rows
+
+
+def until(delta):
+    mins = max(0, -(-int(delta.total_seconds()) // 60))  # ceil
+    h, m = divmod(mins, 60)
+    return f"{h}h {m:02d}m" if h else f"{m}m"
+
+
+def main():
+    ms = mosques()
+    if not ms:
+        emit(f"{tag('MAWAQIT')} set mosque", f"Add mosques to {CONF}\n(one per line: slug | label)", "unset")
+    idx = current_index(len(ms))
+    slug, label = ms[idx]
+    city = tag(esc(label.upper()), BRASS) + "  "
+    try:
+        data, stale = load(slug)
+    except Exception as e:
+        emit(f"{city}{tag('MAWAQIT')} offline", esc(f"mawaqit-api unreachable\n{e}"), "error")
+
+    tz = ZoneInfo(data.get("timezone") or "UTC")
+    now = datetime.now().astimezone()
+    if os.environ.get("MAWAQIT_NOW"):  # testing: MAWAQIT_NOW=2026-09-18T17:12
+        now = datetime.fromisoformat(os.environ["MAWAQIT_NOW"]).astimezone()
+    here = now.astimezone(tz)
+    today = here.date()
+    rows = day_rows(data, today, tz)
+    if not rows:
+        emit(f"{city}{tag('MAWAQIT')} no data", f"No calendar entry for {today}", "error")
+
+    # Next event: adhan, or iqama if the adhan has passed but not the iqama.
+    events = [(n, a, q) for n, a, q in rows + day_rows(data, today + timedelta(days=1), tz)
+              if n is not NAMES[1]]
+    cur = None
+    for names, adhan, iqama in events:
+        if now < adhan:
+            cur = (names, adhan, None)
+            break
+        if iqama and now < iqama:
+            cur = (names, adhan, iqama)
+            break
+
+    if cur is None:
+        text, cls = f"{city}{tag('MAWAQIT')} —", ""
+    else:
+        names, adhan, iqama = cur
+        if iqama:
+            text = (f"{city}{tag(names[0], MUTED)} <span color='{EMERALD}'>IQAMA</span> "
+                    f"{iqama:%H:%M} <span color='{MUTED}'>· {until(iqama - now)}</span>")
+            cls = "iqama"
+        else:
+            soon = adhan - now <= SOON
+            time = f"<span color='{GOLD}'>{adhan:%H:%M}</span>" if soon else f"{adhan:%H:%M}"
+            text = f"{city}{tag(names[0], MUTED)} {time} <span color='{MUTED}'>· {until(adhan - now)}</span>"
+            cls = "soon" if soon else ""
+
+    # Tooltip: header, table, footnotes, mosque list
+    lines = [f"<span color='{GOLD}'><b>{esc(data.get('name', slug))}</b></span>",
+             f"<span color='{MUTED}'>{here:%A %d %B}</span>"]
+    offset = here.utcoffset() - now.utcoffset()
+    if offset:
+        h = offset.total_seconds() / 3600
+        lines.append(f"<span color='{MUTED}'>{tz.key} clock, {h:+g}h from here</span>")
+    lines += ["", f"<span color='{BRASS}'>           ADHAN   IQAMA</span>"]
+    for names, adhan, iqama in rows:
+        q = f"{iqama:%H:%M}" if iqama else "     "
+        row = f"{names[1]:<8} {adhan:%H:%M}   {q}   {names[2]}"
+        if cur is not None and adhan == cur[1]:
+            lines.append(f"<span color='{GOLD}'>● {row}</span>")
+        elif (iqama or adhan) < now:
+            lines.append(f"<span color='{MUTED}' alpha='60%'>  {row}</span>")
+        else:
+            lines.append(f"<span color='{IVORY}'>  {row}</span>")
+    if cur is not None and cur[1].date() != today:
+        lines.append(f"\n<span color='{MUTED}'>next: tomorrow {cur[0][1]} {cur[1]:%H:%M}</span>")
+    if today.weekday() == 4 and data.get("jumua2"):
+        extra = " · ".join(t for t in (data.get("jumua"), data.get("jumua2"), data.get("jumua3")) if t)
+        lines.append(f"\n<span color='{BRASS}'>  Jumuʿa   {extra}</span>")
+    if stale:
+        lines.append(f"\n<span color='{MUTED}'>cached — mawaqit-api unreachable</span>")
+    if len(ms) > 1:
+        lines.append("")
+        for i, (_, l) in enumerate(ms):
+            mark, color = ("●", GOLD) if i == idx else (" ", MUTED)
+            lines.append(f"<span color='{color}'>{mark} {esc(l)}</span>")
+        lines.append(f"<span color='{MUTED}' alpha='60%'>scroll to switch · click for mawaqit.net</span>")
+    emit(text, "\n".join(lines), cls)
+
+ALERT = str(Path(__file__).resolve().parent / "mawaqit-alert")
+LATE = timedelta(minutes=3)       # after a suspend, still alert if this recent
+_banner = None
+
+
+def alert(kind, names, adhan, iqama, label, tz):
+    """Replace any banner on screen with a new one."""
+    global _banner
+    if _banner and _banner.poll() is None:
+        _banner.terminate()
+    now = datetime.now().astimezone()
+    if kind == "adhan":
+        # stay up until the iqama (min 2m), 10m when there is none
+        end = iqama if iqama and iqama > adhan else None
+        duration = max(120, (end - now).total_seconds() + 30) if end else 600
+    else:
+        duration = 240
+    payload = {
+        "kind": kind, "en": names[1], "ar": names[2], "mosque": label,
+        "time": f"{(adhan if kind == 'adhan' else iqama).astimezone(tz):%H:%M}",
+        "iqama": f"{iqama.astimezone(tz):%H:%M}" if iqama else None,
+        "iqama_ts": iqama.timestamp() if iqama else None,
+        "duration": int(duration),
+    }
+    _banner = subprocess.Popen([ALERT, json.dumps(payload)])
+
+
+def upcoming(data, now):
+    """[(when, kind, names, adhan, iqama)] from yesterday to tomorrow."""
+    tz = ZoneInfo(data.get("timezone") or "UTC")
+    today = now.astimezone(tz).date()
+    out = []
+    for d in (-1, 0, 1):
+        for names, adhan, iqama in day_rows(data, today + timedelta(days=d), tz):
+            if names is NAMES[1]:
+                continue
+            out.append((adhan, "adhan", names, adhan, iqama))
+            if iqama and iqama > adhan:  # "+0" iqama: the adhan banner covers it
+                out.append((iqama, "iqama", names, adhan, iqama))
+    return sorted(out, key=lambda e: e[0]), tz
+
+
+def watch():
+    import time
+    fired, last = set(), datetime.now().astimezone()
+    while True:
+        now = datetime.now().astimezone()
+        wait = 30.0
+        ms = mosques()
+        if ms:
+            slug, label = ms[current_index(len(ms))]
+            try:
+                data, _ = load(slug)
+            except Exception:
+                data = None
+            if data:
+                events, tz = upcoming(data, now)
+                for when, kind, names, adhan, iqama in events:
+                    key = (slug, kind, when.isoformat())
+                    if last < when <= now and now - when < LATE and key not in fired:
+                        fired.add(key)
+                        alert(kind, names, adhan, iqama, label, tz)
+                future = [e[0] for e in events if e[0] > now]
+                if future:
+                    wait = min(wait, (min(future) - now).total_seconds() + 0.2)
+        last = now
+        time.sleep(max(0.5, wait))
+
+
+def test_alert(kind):
+    ms = mosques() or [("", "Test")]
+    label = ms[current_index(len(ms))][1]
+    tz = datetime.now().astimezone().tzinfo
+    now = datetime.now().astimezone()
+    alert(kind, NAMES[3], now, now + timedelta(minutes=10) if kind == "adhan" else now, label, tz)
+    _banner.wait()
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    if cmd in ("next", "prev"):
+        switch(1 if cmd == "next" else -1)
+    elif cmd == "watch":
+        watch()
+    elif cmd == "test-alert":
+        test_alert(sys.argv[2] if len(sys.argv) > 2 else "adhan")
+    elif cmd == "open":
+        ms = mosques()
+        if ms:
+            slug = ms[current_index(len(ms))][0]
+            subprocess.Popen(["xdg-open", f"https://mawaqit.net/en/{slug}"])
+    else:
+        main()

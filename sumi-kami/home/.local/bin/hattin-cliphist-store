@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+import os
+import subprocess
+import sys
+
+pause = os.path.expanduser('~/.local/state/cliphist-paused')
+if os.path.exists(pause):
+    raise SystemExit(0)
+
+try:
+    result = subprocess.run(
+        ['wl-paste', '--list-types'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        check=False,
+        timeout=2,
+    )
+except (OSError, subprocess.TimeoutExpired):
+    raise SystemExit(0)
+
+types = result.stdout.decode('utf-8', 'replace').lower()
+sensitive = ('password', 'secret', 'sensitive', 'x-kde-passwordmanagerhint')
+if any(marker in types for marker in sensitive):
+    raise SystemExit(0)
+if not any(marker in types for marker in ('text/', 'utf8_string', 'string')):
+    raise SystemExit(0)
+
+data = sys.stdin.buffer.read(65537)
+if not data or len(data) > 65536 or b'\x00' in data:
+    raise SystemExit(0)
+subprocess.run(
+    ['cliphist', '-max-items', '100', '-max-dedupe-search', '100', 'store'],
+    input=data,
+    check=False,
+)

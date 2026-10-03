@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Prayer alert banner (Sumi yoru): a paper card with a vermilion seal on every monitor, above
+fullscreen windows, without taking keyboard focus. Click to dismiss.
+
+    mawaqit-alert '<json>'
+      kind      "adhan" | "iqama"
+      en, ar    prayer name ("Asr", "العصر")
+      time      "17:00"          mosque  "Paris"
+      iqama     "17:10" | null   iqama_ts  epoch of the iqama | null
+      duration  seconds on screen
+Sound: ~/.local/share/mawaqit/sounds/<kind>.wav; MAWAQIT_CHIME=<file> overrides,
+MAWAQIT_CHIME= (empty) silences. Rings again after MAWAQIT_REPEAT seconds (60)
+unless dismissed.
+
+Launched by `waybar-mawaqit watch` (mawaqit-alerts.service). Namespace
+hattin-mawaqit, so hypr/sumi-yoru.lua's ^hattin- layer rule blurs behind it.
+The card and the seal are PNGs from ~/.config/hypr/sumi-yoru/build-ink.py.
+"""
+
+import json
+import os
+import subprocess
+import sys
+import time
+
+LIB = "/usr/lib/libgtk4-layer-shell.so"
+if LIB not in os.environ.get("LD_PRELOAD", ""):  # must load before libwayland
+    os.environ["LD_PRELOAD"] = f"{LIB} {os.environ.get('LD_PRELOAD', '')}".strip()
+    os.execv(sys.executable, [sys.executable] + sys.argv)
+
+import gi  # noqa: E402
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+gi.require_version("Pango", "1.0")
+gi.require_version("PangoCairo", "1.0")
+from gi.repository import Gdk, GLib, Gtk, Gtk4LayerShell as LS, Pango, PangoCairo  # noqa: E402
+import cairo  # noqa: E402
+
+SOUNDS = os.path.expanduser("~/.local/share/mawaqit/sounds")  # adhan.wav, iqama.wav (make.py)
+FALLBACK = "/usr/share/sounds/freedesktop/stereo/complete.oga"
+REPEAT = int(os.environ.get("MAWAQIT_REPEAT", "60"))  # seconds until the reminder ring
+
+
+def chime(kind):
+    """MAWAQIT_CHIME overrides (empty = silent); else the bell for this kind."""
+    if "MAWAQIT_CHIME" in os.environ:
+        return os.environ["MAWAQIT_CHIME"]
+    path = os.path.join(SOUNDS, f"{kind}.wav")
+    return path if os.path.exists(path) else FALLBACK
+M = 14                                   # room around the card for its shadow
+W, H = 460, 150                          # the paper card (banner-card.png)
+SEAL = 72                                # banner-seal.png
+ART = os.path.expanduser("~/.config/hypr/sumi-yoru")
+ON_SEAL = (0xF3 / 255, 0xEC / 255, 0xDF / 255)
+SHADOW = (0, 0, 0)
+
+CSS = b"""
+window { background: transparent; }
+.card { padding: 30px 30px 14px 122px; }
+.name { font-family: "Newsreader", serif; font-style: italic; font-size: 34px;
+        font-weight: 400; color: #E9E2D4; }
+.ar   { font-family: "Amiri", serif; font-size: 26px; color: #BDB6A8; }
+.tag  { font-family: "Instrument Sans", sans-serif; font-weight: 600; font-size: 10px;
+        letter-spacing: 2px; color: #E0583C; }
+.sub  { font-family: "DM Mono", monospace; font-size: 12px; color: #9A9386; }
+.hint { font-family: "Instrument Sans", sans-serif; font-weight: 600; font-size: 9px;
+        letter-spacing: 2px; color: #5A554C; }
+"""
+
+
+def draw(iqama):
+    """Paper card, a soft ink shadow under it, the seal with 時 (adhan) or 立 (iqama)."""
+    card = cairo.ImageSurface.create_from_png(os.path.join(ART, "banner-card.png"))
+    seal = cairo.ImageSurface.create_from_png(os.path.join(ART, "banner-seal.png"))
+
+    def fn(_area, cr, w, h):
+        for i in range(6, 0, -1):  # stays under the blur rule's ignore_alpha
+            cr.rectangle(M + 10 - i, M + 16 - i, W - 20 + 2 * i, H - 22 + 2 * i)
+            cr.set_source_rgba(*SHADOW, 0.014)
+            cr.fill()
+        cr.set_source_surface(card, M, M)
+        cr.paint()
+        sx, sy = M + 30, M + (H - SEAL) / 2
+        cr.set_source_surface(seal, sx, sy)
+        cr.paint()
+        layout = PangoCairo.create_layout(cr)
+        layout.set_font_description(Pango.FontDescription.from_string("Yuji Syuku 30"))
+        layout.set_text("立" if iqama else "時", -1)
+        _ink, logical = layout.get_pixel_extents()
+        cr.move_to(sx + (SEAL - logical.width) / 2, sy + (SEAL - logical.height) / 2)
+        cr.set_source_rgb(*ON_SEAL)
+        PangoCairo.show_layout(cr, layout)
+    return fn
+
+
+def until(ts):
+    s = max(0, int(ts - time.time()))
+    m, s = divmod(s, 60)
+    return f"in {m}m {s:02d}s" if m else f"in {s}s"
+
+
+def build(app, a, monitor):
+    win = Gtk.ApplicationWindow(application=app)
+    LS.init_for_window(win)
+    LS.set_namespace(win, "hattin-mawaqit")
+    LS.set_layer(win, LS.Layer.OVERLAY)
+    LS.set_anchor(win, LS.Edge.TOP, True)
+    LS.set_margin(win, LS.Edge.TOP, 14 - M // 2)
+    LS.set_keyboard_mode(win, LS.KeyboardMode.NONE)
+    LS.set_monitor(win, monitor)
+    win.set_default_size(W + 2 * M, H + 2 * M)
+
+    iqama = a["kind"] == "iqama"
+    area = Gtk.DrawingArea()
+    area.set_content_width(W + 2 * M)
+    area.set_content_height(H + 2 * M)
+    area.set_draw_func(draw(iqama))
+
+    name = Gtk.Label(label=a["en"], xalign=0)
+    name.add_css_class("name")
+    ar = Gtk.Label(label=a["ar"], xalign=0, hexpand=True)
+    ar.add_css_class("ar")
+    tag = Gtk.Label(label="IQAMA" if iqama else "ADHAN", xalign=1, valign=Gtk.Align.START)
+    tag.add_css_class("tag")
+    title = Gtk.Box(spacing=12)
+    title.append(name)
+    title.append(ar)
+    title.append(tag)
+
+    sub = Gtk.Label(xalign=0)
+    sub.add_css_class("sub")
+
+    minutes = max(1, round(int(a.get("duration", 240)) / 60))
+    hint = Gtk.Label(label=f"{minutes} MIN" if iqama else "DISMISS", xalign=1)
+    hint.add_css_class("hint")
+
+    def tick():
+        head = f"{a['mosque']} · {a['time']}"
+        if iqama:
+            sub.set_label(f"{a['mosque']} · {a.get('iqama') or a['time']} · the prayer is starting")
+        elif a.get("iqama_ts") and a["iqama_ts"] > time.time():
+            sub.set_label(f"{head} · iqama {a['iqama']} · {until(a['iqama_ts'])}")
+        elif a.get("iqama"):
+            sub.set_label(f"{head} · iqama {a['iqama']} · now")
+        else:
+            sub.set_label(f"{head} · time for prayer")
+        return True
+    tick()
+    GLib.timeout_add_seconds(1, tick)
+
+    card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2, valign=Gtk.Align.START)
+    card.add_css_class("card")
+    card.set_margin_top(M)
+    card.set_margin_start(M)
+    card.set_margin_end(M)
+    for w in (title, sub, hint):
+        card.append(w)
+
+    over = Gtk.Overlay()
+    over.set_child(area)
+    over.add_overlay(card)
+    win.set_child(over)
+
+    click = Gtk.GestureClick()
+    click.connect("pressed", lambda *_: app.quit())
+    win.add_controller(click)
+    win.present()
+
+
+def main():
+    a = json.loads(sys.argv[1])
+    app = Gtk.Application(application_id=None)
+
+    def activate(app):
+        prov = Gtk.CssProvider()
+        prov.load_from_data(CSS)
+        disp = Gdk.Display.get_default()
+        Gtk.StyleContext.add_provider_for_display(disp, prov, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        mons = disp.get_monitors()
+        for i in range(mons.get_n_items()):
+            build(app, a, mons.get_item(i))
+        app.hold()
+        GLib.timeout_add_seconds(max(30, int(a.get("duration", 300))), app.quit)
+        sound = chime(a["kind"])
+        if sound and os.path.exists(sound):
+            def ring():
+                subprocess.Popen(["pw-play", "--media-role", "Notification", sound],
+                                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                return False
+            ring()
+            # one reminder if the banner is still up; dismissing quits first
+            GLib.timeout_add_seconds(REPEAT, ring)
+
+    app.connect("activate", activate)
+    app.run([])
+
+
+if __name__ == "__main__":
+    main()

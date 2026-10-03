@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if command -v blueman-manager >/dev/null 2>&1; then
+  exec blueman-manager
+fi
+
+if command -v overskride >/dev/null 2>&1; then
+  exec overskride
+fi
+
+if command -v blueberry >/dev/null 2>&1; then
+  exec blueberry
+fi
+
+exec foot --title bluetooth --app-id bluetooth -e bluetoothctl

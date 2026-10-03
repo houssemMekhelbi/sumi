@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fallback=${1:-eDP-1}
+
+monitors_json=$(hyprctl monitors -j)
+workspaces_json=$(hyprctl workspaces -j)
+
+if ! jq -e --arg mon "$fallback" '.[] | select(.name == $mon)' >/dev/null <<<"$monitors_json"; then
+  fallback=$(jq -r '.[0].name // empty' <<<"$monitors_json")
+fi
+
+[[ -n "$fallback" ]] || exit 0
+
+active_monitors=$(jq -r '.[].name' <<<"$monitors_json")
+
+jq -r '.[] | select(.id > 0) | [.id, .monitor] | @tsv' <<<"$workspaces_json" |
+while IFS=$'\t' read -r workspace monitor; do
+  if ! grep -Fxq "$monitor" <<<"$active_monitors"; then
+    hyprctl eval "hl.dispatch(hl.dsp.workspace.move({ workspace = ${workspace}, monitor = \"${fallback}\" }))" >/dev/null || true
+  fi
+done
+
+hyprctl eval "hl.dispatch(hl.dsp.focus({ monitor = \"${fallback}\" }))" >/dev/null || true

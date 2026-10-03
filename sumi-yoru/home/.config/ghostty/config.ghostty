@@ -1,0 +1,46 @@
+# Sumi yoru terminal. Ink at 93%, compositor blur behind it.
+
+font-family = DM Mono
+font-family = JetBrainsMono Nerd Font
+font-family = Yuji Syuku
+font-size = 10.5
+adjust-cell-height = 30%
+window-padding-x = 16
+window-padding-y = 16
+window-decoration = none
+background-opacity = 0.93
+background-blur = true
+
+background = #1D1B17
+foreground = #DCD5C7
+cursor-color = #D2492F
+cursor-text = #1D1B17
+cursor-style = bar
+cursor-style-blink = false
+selection-background = #2D2B26
+selection-foreground = #E9E2D4
+
+# Search and splits in the theme's colours (ghostty's stock yellow and orange otherwise).
+search-background = #7FA1C6
+search-foreground = #15130F
+search-selected-background = #D2492F
+search-selected-foreground = #15130F
+split-divider-color = #332F29
+unfocused-split-fill = #15130F
+
+palette = 0=#15130F
+palette = 1=#E0583C
+palette = 2=#8FA876
+palette = 3=#C9A860
+palette = 4=#7FA1C6
+palette = 5=#B98AA6
+palette = 6=#7DB3B0
+palette = 7=#9A9386
+palette = 8=#6B655A
+palette = 9=#EE7A5E
+palette = 10=#A9C191
+palette = 11=#DDC07E
+palette = 12=#9DBADB
+palette = 13=#CFA3BD
+palette = 14=#9CCBC8
+palette = 15=#E9E2D4

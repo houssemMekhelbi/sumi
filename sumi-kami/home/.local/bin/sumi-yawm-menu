@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""fzf front end to Taskwarrior for the waybar "yawm" popups.
+
+  sumi-yawm-menu list       interactive list (the click popup)
+  sumi-yawm-menu add        one-line quick add (the right-click popup)
+
+The rest are called from fzf bindings: rows, preview, done, delete, today,
+annotate, create, undo. Every change pokes waybar (SIGRTMIN+10) so the
+count updates at once.
+
+Rows:  ● overdue (vermilion) / ● due today (ink), ○ dated later, ◌ undated,
+       ¶ notes (+note, indigo), listed last
+"""
+
+import json
+import os
+import shlex
+import subprocess
+import sys
+from datetime import datetime, time, timedelta, timezone
+
+SELF = os.path.abspath(__file__)
+TASK = ["task", "rc.verbose=nothing", "rc.confirmation=off", "rc.hooks=off"]
+
+SEAL = "\x1b[38;2;179;55;31m"
+INK = "\x1b[38;2;22;20;15m"
+INDIGO = "\x1b[38;2;46;74;107m"
+TEXT = "\x1b[38;2;22;20;15m"
+STRUCT = "\x1b[38;2;58;55;51m"
+QUIET = "\x1b[38;2;102;97;90m"
+RESET = "\x1b[0m"
+
+COLORS = ",".join([
+    "bg:-1", "bg+:#E4E0D8", "fg:#66615A", "fg+:#16140F:regular",
+    "hl:#3A3733:underline", "hl+:#B3371F:underline",
+    "prompt:#B3371F", "query:#16140F:regular", "ghost:#A39B8C",
+    "pointer:#B3371F", "gutter:-1", "marker:#B3371F",
+    "info:#66615A", "input-border:#D6CFC2", "preview-border:#D6CFC2",
+    "footer:#2E4A6B", "spinner:#3A3733", "separator:#D6CFC2",
+])
+
+
+def task(*args, capture=False):
+    return subprocess.run(TASK + list(args), capture_output=capture, text=True)
+
+
+def poke_bar():
+    subprocess.run(["pkill", "-RTMIN+10", "-x", "waybar"], stderr=subprocess.DEVNULL)
+
+
+def pending():
+    raw = task("+PENDING", "export", capture=True).stdout
+    try:
+        return json.loads(raw or "[]")
+    except ValueError:
+        return []
+
+
+def local_due(t):
+    if "due" not in t:
+        return None
+    return datetime.strptime(t["due"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc).astimezone()
+
+
+def classify(t, today):
+    if "note" in t.get("tags", []):
+        return "note"
+    due = local_due(t)
+    if due is None:
+        return "open"
+    if due.date() < today:
+        return "overdue"
+    if due.date() == today:
+        return "today"
+    return "later"
+
+
+def when(due, today):
+    if due.date() == today:
+        return "today" if due.time() == time() else due.strftime("%H:%M")
+    if due.date() == today + timedelta(days=1):
+        return "tomorrow"
+    if abs((due.date() - today).days) < 7:
+        return due.strftime("%a")
+    return due.strftime("%d %b")
+
+
+def rows():
+    today = datetime.now().date()
+    order = {"overdue": 0, "today": 1, "later": 2, "open": 3, "note": 4}
+    mark = {
+        "overdue": f"{SEAL}●", "today": f"{INK}●", "later": f"{STRUCT}○",
+        "open": f"{QUIET}◌", "note": f"{INDIGO}¶",
+    }
+    far = datetime.max.replace(tzinfo=timezone.utc)
+    items = []
+    for t in pending():
+        kind = classify(t, today)
+        due = local_due(t)
+        items.append((order[kind], due or far, -t.get("urgency", 0), kind, due, t))
+    items.sort(key=lambda i: i[:3])
+
+    for _, _, _, kind, due, t in items:
+        meta = []
+        if due:
+            meta.append(when(due, today))
+        if t.get("project"):
+            meta.append(t["project"])
+        meta += ["+" + g for g in t.get("tags", []) if g != "note"]
+        if t.get("annotations"):
+            meta.append(f"¶{len(t['annotations'])}")
+        colour = QUIET if kind == "note" else TEXT
+        hint = f"   {QUIET}{' · '.join(meta)}{RESET}" if meta else ""
+        print(f"{t['uuid']}\t{mark[kind]}{RESET} {colour}{t['description']}{RESET}{hint}")
+
+
+def preview(uuid):
+    try:
+        t = json.loads(task(uuid, "export", capture=True).stdout)[0]
+    except (ValueError, IndexError):
+        return
+    today = datetime.now().date()
+    print(f"{TEXT}{t['description']}{RESET}")
+    facts = []
+    due = local_due(t)
+    if due:
+        facts.append(f"due {due.strftime('%a %d %b %H:%M')}")
+    if t.get("project"):
+        facts.append(f"project {t['project']}")
+    if t.get("tags"):
+        facts.append(" ".join("+" + g for g in t["tags"]))
+    kind = classify(t, today)
+    if kind == "overdue":
+        facts.append(f"{SEAL}overdue{RESET}{QUIET}")
+    if facts:
+        print(f"{QUIET}{'   '.join(facts)}{RESET}")
+    for a in t.get("annotations", []):
+        stamp = datetime.strptime(a["entry"], "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc).astimezone()
+        print(f"{INDIGO}¶{RESET} {a['description']}  {QUIET}{stamp.strftime('%d %b')}{RESET}")
+
+
+def create(text):
+    words = text.split()
+    if not words:
+        return False
+    task("add", *words, capture=True)
+    poke_bar()
+    return True
+
+
+def toggle_today(uuid):
+    try:
+        t = json.loads(task(uuid, "export", capture=True).stdout)[0]
+    except (ValueError, IndexError):
+        return
+    due = local_due(t)
+    if due and due.date() == datetime.now().date():
+        task(uuid, "modify", "due:", capture=True)
+    else:
+        task(uuid, "modify", "due:today", capture=True)
+    poke_bar()
+
+
+def fzf_list():
+    me = shlex.quote(SELF)
+    reload = f"reload({me} rows)"
+    cmd = [
+        "fzf",
+        "--ansi", "--delimiter=\t", "--with-nth=2..",
+        "--layout=reverse", "--no-sort",
+        "--prompt=›  ", "--pointer=▎", "--gutter= ",
+        "--highlight-line", "--no-scrollbar",
+        "--info=inline-right",
+        "--ghost=search · or type a task and C-A to add, C-N to note the selected one",
+        "--input-border=bottom",
+        "--preview", f"{me} preview {{1}}",
+        "--preview-window=down,4,border-top,wrap",
+        "--footer=RET done  C-A add  C-N note  C-T today  C-E edit  C-X del  C-Z undo",
+        "--color=" + COLORS,
+        "--bind", "ctrl-j:down,ctrl-k:up,esc:abort",
+        "--bind", f"start:{reload}",
+        "--bind", f"enter:execute-silent({me} done {{1}})+{reload}",
+        "--bind", f"ctrl-a:execute-silent({me} create {{q}})+clear-query+{reload}",
+        "--bind", f"ctrl-n:execute-silent({me} annotate {{1}} {{q}})+clear-query+{reload}",
+        "--bind", f"ctrl-t:execute-silent({me} today {{1}})+{reload}",
+        "--bind", f"ctrl-e:execute(task {{1}} edit)+execute-silent({me} poke)+{reload}",
+        "--bind", f"ctrl-x:execute-silent({me} delete {{1}})+{reload}",
+        "--bind", f"ctrl-z:execute-silent({me} undo)+{reload}",
+    ]
+    subprocess.run(cmd, stdin=subprocess.DEVNULL)
+
+
+def fzf_add():
+    cmd = [
+        "fzf",
+        "--disabled", "--layout=reverse", "--no-info",
+        "--prompt=+  ",
+        "--ghost=Buy bread due:today project:home +shop",
+        "--input-border=bottom",
+        "--footer=RET add   ESC cancel\n"
+                  "due:today / tomorrow / fri / 2026-10-01   project:x   +tag   +note",
+        "--color=" + COLORS,
+        "--bind", "enter:accept-or-print-query,esc:abort",
+    ]
+    proc = subprocess.run(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, text=True)
+    text = proc.stdout.strip()
+    if proc.returncode == 0 and create(text):
+        subprocess.run(["notify-send", "-a", "yawm", "-t", "3000", "Task added", text],
+                       stderr=subprocess.DEVNULL)
+
+
+def main():
+    args = sys.argv[1:] or ["list"]
+    cmd, rest = args[0], args[1:]
+    if cmd == "list":
+        fzf_list()
+    elif cmd == "add":
+        fzf_add()
+    elif cmd == "rows":
+        rows()
+    elif cmd == "preview" and rest:
+        preview(rest[0])
+    elif cmd == "create":
+        create(" ".join(rest))
+    elif cmd == "done" and rest:
+        task(rest[0], "done", capture=True)
+        poke_bar()
+    elif cmd == "delete" and rest:
+        task(rest[0], "delete", capture=True)
+        poke_bar()
+    elif cmd == "today" and rest:
+        toggle_today(rest[0])
+    elif cmd == "annotate" and len(rest) > 1 and rest[1].strip():
+        task(rest[0], "annotate", rest[1], capture=True)
+        poke_bar()
+    elif cmd == "undo":
+        task("undo", capture=True)
+        poke_bar()
+    elif cmd == "poke":
+        poke_bar()
+
+
+if __name__ == "__main__":
+    main()

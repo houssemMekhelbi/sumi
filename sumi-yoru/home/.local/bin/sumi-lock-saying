@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+"""Lock-screen saying (Sumi yoru, tategaki in Yuji Syuku). No username.
+
+    sumi-lock-saying jp1      first Japanese column (rightmost), one glyph per line
+    sumi-lock-saying jp2      second column (to its left), and so on
+    sumi-lock-saying romaji   the romaji in spaced capitals (turned 90° by hyprlock)
+    sumi-lock-saying          everything on one line
+
+Sayings come from ~/.config/hypr/sumi-yoru/sayings.txt, one per line as
+"romaji | japanese"; spaces in the Japanese split it into columns (tategaki:
+read top to bottom, right to left). The saying changes every 10 minutes; the
+index comes from the clock, so all labels show the same saying.
+"""
+
+import sys
+import time
+from html import escape
+from pathlib import Path
+
+SAYINGS = Path.home() / ".config/hypr/sumi-yoru/sayings.txt"
+
+
+def current():
+    try:
+        lines = [l.strip() for l in SAYINGS.read_text(encoding="utf-8").splitlines()]
+    except OSError:
+        return None
+    sayings = [l for l in lines if l and not l.startswith("#")]
+    if not sayings:
+        return None
+    romaji, _, japanese = sayings[int(time.time() // 600) % len(sayings)].partition("|")
+    return romaji.strip(), japanese.split()
+
+
+def main():
+    saying = current()
+    if not saying:
+        return
+    romaji, columns = saying
+    mode = sys.argv[1] if len(sys.argv) > 1 else ""
+    if mode.startswith("jp"):
+        n = int(mode[2:] or 1) - 1
+        if 0 <= n < len(columns):
+            print(f"<span line_height='1.0'>{escape(chr(10).join(columns[n]))}</span>")
+        else:
+            print("")
+    elif mode == "romaji":
+        print(f"<span letter_spacing='9000'>{escape(romaji.upper())}</span>")
+    else:
+        print(f"{escape(romaji.upper())}  ─  {escape(' '.join(columns))}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,6 @@
+# Sayings shown on the Sumi lock screen, one per line: romaji | japanese
+# Spaces in the Japanese split it into vertical columns, read right to left.
+# Blank lines and lines starting with # are skipped; the saying changes every
+# 10 minutes when there are several.
+ippitsu nyūkon | 一筆入魂
+sumi ni gosai ari | 墨に 五彩あり

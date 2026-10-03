@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Don't lock the local session while a remote SSH client is actively
+# connected — the console being physically idle isn't the same as the
+# machine being unused.
+if ss -tn state established '( dport = :22 or sport = :22 )' | grep -q .; then
+    exit 0
+fi
+
+loginctl lock-session

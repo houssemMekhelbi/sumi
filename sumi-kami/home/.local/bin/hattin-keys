@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+action=${1:-}
+
+case "$action" in
+  volume-up)
+    wpctl set-volume -l 1.0 @DEFAULT_AUDIO_SINK@ 5%+
+    ;;
+  volume-down)
+    wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+    ;;
+  volume-mute)
+    wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+    ;;
+  mic-mute)
+    wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    ;;
+  brightness-up)
+    brightnessctl set 5%+
+    ;;
+  brightness-down)
+    brightnessctl set 5%-
+    ;;
+  kbd-brightness-up)
+    dev=$(brightnessctl --list | awk -F\' '/kbd_backlight|keyboard/ {print $2; exit}')
+    [[ -n ${dev:-} ]] && brightnessctl --device="$dev" set 1+ || exit 0
+    ;;
+  kbd-brightness-down)
+    dev=$(brightnessctl --list | awk -F\' '/kbd_backlight|keyboard/ {print $2; exit}')
+    [[ -n ${dev:-} ]] && brightnessctl --device="$dev" set 1- || exit 0
+    ;;
+  play-pause)
+    playerctl play-pause
+    ;;
+  next)
+    playerctl next
+    ;;
+  previous)
+    playerctl previous
+    ;;
+  *)
+    echo "usage: hattin-keys volume-up|volume-down|volume-mute|mic-mute|brightness-up|brightness-down|kbd-brightness-up|kbd-brightness-down|play-pause|next|previous" >&2
+    exit 2
+    ;;
+esac

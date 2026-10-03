@@ -1,0 +1,25 @@
+# Mawaqit prayer-times API (github.com/mrsofiane/mawaqit-api), built from
+# ~/.local/share/mawaqit-api with:
+#   podman build --from docker.io/library/python:3.12-alpine -t localhost/mawaqit-api .
+# Consumed by ~/.local/bin/waybar-mawaqit. Loopback only.
+[Unit]
+Description=Mawaqit prayer-times API
+
+[Container]
+Image=localhost/mawaqit-api:latest
+ContainerName=mawaqit-api
+PublishPort=127.0.0.1:8765:8000
+Exec=uvicorn main:app --host 0.0.0.0 --port 8000
+User=65534:65534
+Environment=RATE_LIMIT=120/minute
+ReadOnly=true
+Tmpfs=/tmp
+Environment=PYTHONDONTWRITEBYTECODE=1
+DropCapability=ALL
+NoNewPrivileges=true
+
+[Service]
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

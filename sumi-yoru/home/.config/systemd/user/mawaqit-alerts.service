@@ -1,0 +1,13 @@
+[Unit]
+Description=Prayer alert banners (adhan + iqama) for the mosque shown in Waybar
+PartOf=graphical-session.target
+After=graphical-session.target mawaqit-api.service
+Requisite=graphical-session.target
+
+[Service]
+ExecStart=%h/.local/bin/waybar-mawaqit watch
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Clipboard contents must not survive locking. Wiping an absent/empty database
+# is harmless; lock even if clipboard cleanup encounters an error.
+cliphist wipe >/dev/null 2>&1 || true
+exec hyprlock

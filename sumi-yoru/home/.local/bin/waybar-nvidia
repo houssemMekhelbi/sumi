@@ -1,0 +1,23 @@
+#!/bin/sh
+
+if ! command -v nvidia-smi >/dev/null 2>&1; then
+    printf '{"text":"","class":"off"}\n'
+    exit 0
+fi
+
+data="$(nvidia-smi \
+    --query-gpu=temperature.gpu,memory.used,power.draw \
+    --format=csv,noheader,nounits 2>/dev/null | head -1)"
+
+[ -z "$data" ] && {
+    printf '{"text":"","class":"off"}\n'
+    exit 0
+}
+
+temp="$(printf '%s' "$data" | cut -d, -f1 | xargs)"
+mem="$(printf '%s' "$data" | cut -d, -f2 | xargs)"
+power="$(printf '%s' "$data" | cut -d, -f3 | xargs)"
+
+printf \
+'{"text":"NV %s°C","class":"active","tooltip":"RTX 3060\\n%s MiB VRAM\\n%s W"}\n' \
+"$temp" "$mem" "$power"

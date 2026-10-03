@@ -1,0 +1,72 @@
+# Sumi kami theme + add-ons. Paths relative to $HOME; directories are copied whole.
+
+# Hyprland (core Lua config is included because sumi-kami.lua/workspaces.lua are
+# required from it and it launches the sumi-*/hattin-* helpers)
+.config/hypr/hyprland.lua
+.config/hypr/futuwwa.lua
+.config/hypr/sumi-kami.lua
+.config/hypr/workspaces.lua
+.config/hypr/hyprlock.conf
+.config/hypr/hypridle.conf
+.config/hypr/hyprpaper.conf
+.config/hypr/sumi-kami
+
+# Waybar
+.config/waybar/config.jsonc
+.config/waybar/style.css
+.config/waybar/sumi-kami
+
+# GTK / Thunar, fonts, icons
+.config/gtk-3.0/gtk.css
+.config/gtk-3.0/settings.ini
+.config/gtk-3.0/sumi-kami
+.config/gtk-4.0/gtk.css
+.config/gtk-4.0/settings.ini
+.config/fontconfig/fonts.conf
+.local/share/fonts/sumi-kami
+.local/share/icons/SumiKami
+.local/share/icons/SumiKamiFude
+
+# Terminals, shell, multiplexer, (unused) fuzzel, notifications
+.config/foot/foot.ini
+.config/alacritty/alacritty.toml
+.config/ghostty/config.ghostty
+.config/tmux/tmux.conf
+.config/zsh/sumi-kami.zsh-theme
+.config/fuzzel/fuzzel.ini
+.config/swaync/style.css
+
+# Helpers: launcher, lock, workspaces, bar scripts
+.local/bin/sumi-launcher
+.local/bin/sumi-launcher-menu
+.local/bin/sumi-lock-saying
+.local/bin/hattin-workspaces
+.local/bin/hattin-bluetooth-ui
+.local/bin/hattin-cliphist-store
+.local/bin/hattin-idle
+.local/bin/hattin-keys
+.local/bin/hattin-lock
+.local/bin/hattin-monitor-recover
+.local/bin/lock-unless-ssh-active
+.local/bin/waybar-nvidia
+.local/bin/waybar-proton
+.local/bin/waybar-tailscale
+
+# Add-on: yawm (Taskwarrior tasks; task *data* is not included)
+.config/task/taskrc
+.local/bin/waybar-yawm
+.local/bin/sumi-yawm
+.local/bin/sumi-yawm-menu
+
+# Add-on: mawaqit prayer times
+.config/mawaqit/mosques
+.config/containers/systemd/mawaqit-api.container
+.local/share/mawaqit-api
+.local/share/mawaqit/sounds
+.local/bin/waybar-mawaqit
+.local/bin/mawaqit-alert
+
+# User services
+.config/systemd/user/hattin-workspaces.service
+.config/systemd/user/mawaqit-alerts.service
+.config/systemd/user/cliphist.service.d/override.conf

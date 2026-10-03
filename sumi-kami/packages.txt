@@ -1,0 +1,13 @@
+# Arch packages Sumi kami and its add-ons need (pacman -S --needed $(grep -v '^#' packages.txt))
+hyprland hyprpaper hyprlock hypridle
+waybar swaync pavucontrol power-profiles-daemon
+foot alacritty ghostty tmux zsh fzf jq
+thunar librsvg
+cliphist wl-clipboard libnotify
+pipewire pipewire-pulse wireplumber
+python python-gobject python-cairo gtk4-layer-shell
+task podman
+# fonts: JetBrains Mono Nerd supplies powerline glyphs behind DM Mono; Noto Sans Symbols 2 / DejaVu Sans Mono draw ● ○ ◌
+# (Yuji Syuku, Newsreader, Instrument Sans, DM Mono, Amiri, IBM Plex Sans Arabic are vendored in fonts/sumi-kami)
+ttf-jetbrains-mono-nerd noto-fonts ttf-dejavu
+# optional, only for their bar modules: tailscale nvidia-utils (Proton VPN client)

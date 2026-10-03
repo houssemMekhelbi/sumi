@@ -1,0 +1,3 @@
+# Paths restore.sh removes (after backing them up) because Sumi yoru must not
+# have them. Files of the previous theme are removed automatically; list here
+# only what no theme snapshot owns.

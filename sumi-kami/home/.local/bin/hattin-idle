@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# hattin-idle: the bar's switch for idle actions (waybar custom/idle, signal 11).
+#
+#   hattin-idle            print the waybar JSON (text on|off, class on|off)
+#   hattin-idle toggle     switch, then refresh the bar
+#   hattin-idle on|off     idle actions on (the default) / off
+#   hattin-idle status     print on|off
+#
+# "off" holds a systemd idle inhibitor (systemd-inhibit --what=idle) in the
+# transient user unit hattin-idle-inhibit.service. hypridle keeps running and
+# skips its timeout listeners while the inhibitor exists (the idle lock of
+# hypr/hypridle.conf), and logind skips its IdleAction (hibernate, suspend,
+# logout), should one ever be configured. Locking by hand (SUPER+ALT+L) and
+# the lock before sleep are not idle actions and keep working.
+# The unit ends with the graphical session, so every login starts with "on".
+# Theme-independent: the label and the colours live in waybar's config.jsonc
+# and style.css (#custom-idle, #custom-idle.off).
+
+UNIT=hattin-idle-inhibit.service
+
+is_off() { systemctl --user is-active --quiet "$UNIT"; }
+
+turn_off() {
+    is_off && return 0
+    systemctl --user reset-failed "$UNIT" 2>/dev/null || true
+    systemd-run --user --quiet --collect --unit="$UNIT" \
+        --description="Idle actions switched off from the bar (hattin-idle)" \
+        --property=PartOf=graphical-session.target \
+        systemd-inhibit --what=idle --who=hattin-idle \
+        --why="Idle actions switched off from the bar" --mode=block \
+        sleep infinity
+}
+
+turn_on() { systemctl --user stop "$UNIT" 2>/dev/null || true; }
+
+refresh() { pkill -RTMIN+11 -x waybar 2>/dev/null || true; }
+
+timeout_text() {
+    local conf="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/hypridle.conf" s
+    s=$(sed -n 's/^[[:space:]]*timeout[[:space:]]*=[[:space:]]*\([0-9]\+\).*/\1/p' "$conf" 2>/dev/null | head -n 1)
+    [[ -n "$s" ]] || return 0
+    if (( s % 60 == 0 )); then printf ' after %d min' $(( s / 60 )); else printf ' after %d s' "$s"; fi
+}
+
+case "${1:-}" in
+    toggle) if is_off; then turn_on; else turn_off; fi; refresh ;;
+    off)    turn_off; refresh ;;
+    on)     turn_on; refresh ;;
+    status) if is_off; then echo off; else echo on; fi ;;
+    "")
+        if is_off; then
+            printf '{"text": "off", "class": "off", "tooltip": "Idle actions are off: no idle lock, hibernate or logout\\nclick: switch on"}\n'
+        else
+            printf '{"text": "on", "class": "on", "tooltip": "Idle actions are on: lock%s\\nclick: switch off"}\n' "$(timeout_text)"
+        fi ;;
+    *) echo "usage: hattin-idle [toggle|on|off|status]" >&2; exit 2 ;;
+esac

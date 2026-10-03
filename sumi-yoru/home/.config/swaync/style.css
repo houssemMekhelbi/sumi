@@ -1,0 +1,116 @@
+/* Sumi yoru notifications. Starts from the stock stylesheet: paper cards
+ * (1D1B17 at 97%), 1px sei hairline, a 2px rule inside the left edge carries
+ * urgency: vermilion for critical, ink for normal, tan for low. Title 12px
+ * medium, time in DM Mono, body muted; the control-centre title in Newsreader
+ * italic. Blur comes from the Hyprland layer rule sumi-notify-glass (^swaync).
+ * Reload after editing: swaync-client -rs */
+
+@import url("file:///etc/xdg/swaync/style.css");
+
+:root {
+  --cc-bg: rgba(21, 19, 15, 0.96);
+  --noti-border-color: rgba(51, 47, 41, 1);
+  --noti-bg: 29, 27, 23;
+  --noti-bg-alpha: 0.97;
+  --noti-bg-darker: rgb(21, 19, 15);
+  --noti-bg-hover: rgb(45, 43, 38);
+  --noti-bg-focus: rgba(45, 43, 38, 0.8);
+  --noti-close-bg: rgb(45, 43, 38);
+  --noti-close-bg-hover: rgb(51, 47, 41);
+  --text-color: rgb(233, 226, 212);
+  --text-color-disabled: rgb(154, 147, 134);
+  --bg-selected: rgb(189, 182, 168);
+  --border: 1px solid var(--noti-border-color);
+  --border-radius: 3px;
+  --notification-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --font-size-body: 12px;
+  --font-size-summary: 12px;
+}
+
+* {
+  font-family: "Instrument Sans", "IBM Plex Sans Arabic", sans-serif;
+}
+
+.notification-row .notification-background .notification {
+  box-shadow: inset 2px 0 0 rgb(189, 182, 168);
+}
+
+.notification-row .notification-background .notification.low {
+  box-shadow: inset 2px 0 0 rgb(90, 85, 76);
+}
+
+.notification-row .notification-background .notification.critical {
+  box-shadow: inset 2px 0 0 rgb(210, 73, 47);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .summary {
+  font-weight: 500;
+  color: rgb(233, 226, 212);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .time {
+  font-family: "DM Mono", monospace;
+  font-size: 10px;
+  font-weight: normal;
+  color: rgb(154, 147, 134);
+}
+
+.notification-row .notification-background .notification .notification-default-action .notification-content .text-box .body {
+  color: rgb(154, 147, 134);
+}
+
+.close-button {
+  border-radius: 2px;
+}
+
+.control-center {
+  border: 1px solid rgb(51, 47, 41);
+  border-radius: 3px;
+}
+
+.widget-title > label {
+  font-family: "Newsreader", serif;
+  font-style: italic;
+  font-size: 1.7rem;
+  color: rgb(233, 226, 212);
+}
+
+.widget-title > button,
+.widget-buttons-grid flowboxchild > button {
+  border-radius: 2px;
+  background: rgb(29, 27, 23);
+  color: rgb(233, 226, 212);
+  border: 1px solid rgb(51, 47, 41);
+}
+
+.widget-title > button:hover,
+.widget-buttons-grid flowboxchild > button:hover {
+  background: rgb(45, 43, 38);
+}
+
+.widget-buttons-grid flowboxchild > button.toggle:checked {
+  background: rgb(189, 182, 168);
+  color: rgb(21, 19, 15);
+}
+
+.widget-dnd label {
+  font-family: "Instrument Sans", sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: rgb(154, 147, 134);
+}
+
+.widget-dnd switch {
+  border-radius: 2px;
+  background: rgb(51, 47, 41);
+}
+
+.widget-dnd switch slider {
+  border-radius: 2px;
+  background: rgb(29, 27, 23);
+}
+
+.widget-dnd switch:checked {
+  background: rgb(189, 182, 168);
+}

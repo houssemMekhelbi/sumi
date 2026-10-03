@@ -1,0 +1,259 @@
+/* Sumi kami bar. Three pale ink strokes on the paper: each module box
+ * is a brush stroke with dry, ragged ends. The ends are PNG caps in the box's
+ * side padding (sumi-kami/band-start.png, band-end.png); the body is a seamless
+ * tile (band-body.png) repeated across the content box. All three come from
+ * ~/.config/hypr/sumi-kami/build-ink.py. Hyprland blurs the layer.
+ * Type: Instrument Sans labels, DM Mono values. Vermilion only for attention. */
+
+@define-color ground  #EEE8DC;
+@define-color raised  #F6F2EA;
+@define-color sei     #D6CFC2;
+@define-color tan     #A39B8C;
+@define-color muted   #66615A;
+@define-color struct  #3A3733;
+@define-color text    #16140F;
+@define-color shu     #C8412B;
+@define-color shut    #B3371F;
+@define-color ai      #2E4A6B;
+
+* {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    text-shadow: none;
+    min-height: 0;
+    font-family: "Instrument Sans", "IBM Plex Sans Arabic", "JetBrainsMono Nerd Font", sans-serif;
+    font-size: 12px;
+}
+
+window#waybar {
+    background: transparent;
+    color: @text;
+}
+
+tooltip {
+    background: alpha(@raised, 0.97);
+    border: 1px solid alpha(@struct, 0.35);
+}
+
+tooltip label {
+    color: @text;
+    font-family: "DM Mono", "JetBrainsMono Nerd Font", monospace;
+}
+
+/* ---- the strokes ------------------------------------------------------ */
+
+.modules-left,
+.modules-center,
+.modules-right {
+    margin-bottom: 8px;
+    padding: 0 30px;            /* exactly the cap width: caps and body must not overlap */
+    background-image:
+        url("sumi-kami/band-start.png"),
+        url("sumi-kami/band-end.png"),
+        url("sumi-kami/band-body.png");
+    background-repeat: no-repeat, no-repeat, repeat-x;
+    background-size: 30px 34px, 30px 34px, 240px 34px;
+    background-position: left top, right top, left top;
+    background-origin: border-box, border-box, content-box;
+    background-clip: border-box, border-box, content-box;
+}
+
+window#waybar.empty #window {
+    border-left: none;
+}
+
+/* ---- workspaces: ink drops ------------------------------------------ */
+/* Glyphs come from hattin-workspaces: ○ empty, ● occupied (pale wash),
+ * ● active on another monitor (muted), ● focused (full ink), ● urgent (seal),
+ * ◌ foreign (indigo). */
+
+#custom-ws-1, #custom-ws-2, #custom-ws-3, #custom-ws-4, #custom-ws-5,
+#custom-ws-6, #custom-ws-7, #custom-ws-8, #custom-ws-9, #custom-ws-10,
+#custom-ws-x {
+    min-width: 20px;
+    padding: 0;
+    margin: 0;
+    color: @tan;
+    font-family: "Noto Sans Symbols 2", "DejaVu Sans Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 14px;
+}
+
+#custom-ws-1.empty, #custom-ws-2.empty, #custom-ws-3.empty, #custom-ws-4.empty,
+#custom-ws-5.empty, #custom-ws-6.empty, #custom-ws-7.empty, #custom-ws-8.empty,
+#custom-ws-9.empty, #custom-ws-10.empty {
+    color: @tan;
+}
+
+#custom-ws-1.active, #custom-ws-2.active, #custom-ws-3.active, #custom-ws-4.active,
+#custom-ws-5.active, #custom-ws-6.active, #custom-ws-7.active, #custom-ws-8.active,
+#custom-ws-9.active, #custom-ws-10.active {
+    color: @muted;
+}
+
+#custom-ws-1.focused, #custom-ws-2.focused, #custom-ws-3.focused, #custom-ws-4.focused,
+#custom-ws-5.focused, #custom-ws-6.focused, #custom-ws-7.focused, #custom-ws-8.focused,
+#custom-ws-9.focused, #custom-ws-10.focused {
+    color: @text;
+    font-size: 16px;
+}
+
+#custom-ws-1.urgent, #custom-ws-2.urgent, #custom-ws-3.urgent, #custom-ws-4.urgent,
+#custom-ws-5.urgent, #custom-ws-6.urgent, #custom-ws-7.urgent, #custom-ws-8.urgent,
+#custom-ws-9.urgent, #custom-ws-10.urgent {
+    color: @shu;
+}
+
+#custom-ws-x {
+    color: @ai;
+    font-size: 13px;
+    padding: 0 4px;
+}
+
+#custom-ws-x.active {
+    color: @text;
+}
+
+#custom-ws-1:hover, #custom-ws-2:hover, #custom-ws-3:hover, #custom-ws-4:hover,
+#custom-ws-5:hover, #custom-ws-6:hover, #custom-ws-7:hover, #custom-ws-8:hover,
+#custom-ws-9:hover, #custom-ws-10:hover, #custom-ws-x:hover {
+    color: @text;
+}
+
+/* ---- next prayer (custom/mawaqit) ------------------------------------ */
+/* City as a muted label, prayer muted, time in ink (markup from
+ * waybar-mawaqit); classes: soon (<15m, time in vermilion), iqama, error. */
+
+#custom-mawaqit {
+    padding: 0 6px 0 12px;
+    margin: 9px 0 8px 8px;
+    border-left: 1px solid alpha(@tan, 0.55);
+    color: @text;
+    font-family: "DM Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 11px;
+}
+
+#custom-mawaqit.error,
+#custom-mawaqit.unset {
+    color: @muted;
+}
+
+/* ---- window title ------------------------------------------------------ */
+
+#window {
+    padding: 0 6px 0 12px;
+    margin: 9px 0 8px 8px;
+    border-left: 1px solid alpha(@tan, 0.55);
+    color: @muted;
+    font-size: 11px;
+}
+
+/* ---- instrument cluster ------------------------------------------------ */
+
+#custom-proton,
+#custom-tailscale,
+#network,
+#wireplumber,
+#bluetooth,
+#cpu,
+#memory,
+#temperature,
+#custom-nvidia,
+#power-profiles-daemon,
+#battery,
+#tray,
+#custom-tray-leader,
+#custom-notifications,
+#custom-idle,
+#custom-yawm {
+    padding: 0 9px;
+    margin: 9px 0 8px 0;
+    border-right: 1px solid alpha(@tan, 0.55);
+    color: @text;
+    font-family: "DM Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 11px;
+}
+
+#custom-yawm {
+    border-right: none;
+}
+
+#clock {
+    padding: 0 8px;
+    color: @text;
+    font-family: "DM Mono", "JetBrainsMono Nerd Font", monospace;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+#power-profiles-daemon {
+    color: @muted;
+}
+
+#custom-proton.up,
+#custom-tailscale.up {
+    color: @ai;
+}
+
+#custom-proton.down,
+#custom-tailscale.down {
+    color: @shut;
+}
+
+/* due today: vermilion text; overdue: a pressed seal (vermilion, paper text) */
+#custom-yawm.due {
+    color: @shut;
+}
+
+#custom-yawm.overdue {
+    color: #F6F2EA;
+    background: @shu;
+    border-radius: 2px;
+}
+
+#custom-nvidia.active {
+    color: @ai;
+}
+
+#custom-idle.off,
+#battery.warning,
+#temperature.critical {
+    color: @shut;
+}
+
+#battery.critical {
+    color: #F6F2EA;
+    background: @shu;
+    border-radius: 2px;
+}
+
+/* ---- click-to-reveal groups (NET, SYS, ◌) ------------------------------ */
+
+#custom-tray-leader {
+    color: @tan;
+    font-family: "Noto Sans Symbols 2", "DejaVu Sans Mono", monospace;
+    font-size: 13px;
+}
+
+#tray {
+    margin: 7px 0 7px 0;
+}
+
+/* Revealed members sit on a slightly deeper wash so the group reads as one drawer. */
+.drawer-hidden {
+    background: alpha(@struct, 0.06);
+}
+
+#network:hover,
+#cpu:hover,
+#custom-tray-leader:hover,
+#custom-mawaqit:hover,
+#custom-yawm:hover {
+    background: alpha(@struct, 0.07);
+}
+
+#tray menu {
+    background: @raised;
+    border: 1px solid alpha(@struct, 0.35);
+    color: @text;
+}

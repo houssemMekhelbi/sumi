@@ -1,0 +1,79 @@
+# Sumi kami terminal. Paper at 96%, compositor blur behind it.
+
+[window]
+opacity = 0.96
+padding = { x = 16, y = 16 }
+decorations = "None"
+blur = true
+
+[font]
+normal = { family = "DM Mono", style = "Regular" }
+size = 10.5
+offset = { x = 0, y = 4 }
+
+[cursor]
+style = { shape = "Beam", blinking = "Off" }
+vi_mode_style = { shape = "Block" }
+thickness = 0.2
+
+[colors.primary]
+background = "#F6F2EA"
+foreground = "#1F1D19"
+bright_foreground = "#16140F"
+
+[colors.cursor]
+text = "#F6F2EA"
+cursor = "#C8412B"
+
+[colors.selection]
+text = "#16140F"
+background = "#E4E0D8"
+
+# Search, hints, the footer bar and the vi-mode cursor in the theme's colours (alacritty's stock ones otherwise).
+[colors.search.matches]
+foreground = "#EEE8DC"
+background = "#2E4A6B"
+
+[colors.search.focused_match]
+foreground = "#EEE8DC"
+background = "#C8412B"
+
+[colors.hints.start]
+foreground = "#EEE8DC"
+background = "#C8412B"
+
+[colors.hints.end]
+foreground = "#C8412B"
+background = "#E4E0D8"
+
+[colors.footer_bar]
+foreground = "#16140F"
+background = "#E4E0D8"
+
+[colors.line_indicator]
+foreground = "#EEE8DC"
+background = "#3A3733"
+
+[colors.vi_mode_cursor]
+text = "#EEE8DC"
+cursor = "#2E4A6B"
+
+[colors.normal]
+black   = "#16140F"
+red     = "#B3371F"
+green   = "#4F6B3A"
+yellow  = "#8A6A1F"
+blue    = "#2E4A6B"
+magenta = "#7A3B5E"
+cyan    = "#2F6468"
+white   = "#66615A"
+
+[colors.bright]
+black   = "#8C8578"
+red     = "#C8412B"
+green   = "#5F7F46"
+yellow  = "#A07B25"
+blue    = "#3F5F86"
+magenta = "#8E4A70"
+cyan    = "#3B7B80"
+white   = "#3A3733"

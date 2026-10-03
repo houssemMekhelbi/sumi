@@ -1,0 +1,79 @@
+# Sumi yoru terminal. Ink at 93%, compositor blur behind it.
+
+[window]
+opacity = 0.93
+padding = { x = 16, y = 16 }
+decorations = "None"
+blur = true
+
+[font]
+normal = { family = "DM Mono", style = "Regular" }
+size = 10.5
+offset = { x = 0, y = 4 }
+
+[cursor]
+style = { shape = "Beam", blinking = "Off" }
+vi_mode_style = { shape = "Block" }
+thickness = 0.2
+
+[colors.primary]
+background = "#1D1B17"
+foreground = "#DCD5C7"
+bright_foreground = "#E9E2D4"
+
+[colors.cursor]
+text = "#1D1B17"
+cursor = "#D2492F"
+
+[colors.selection]
+text = "#E9E2D4"
+background = "#2D2B26"
+
+# Search, hints, the footer bar and the vi-mode cursor in the theme's colours (alacritty's stock ones otherwise).
+[colors.search.matches]
+foreground = "#15130F"
+background = "#7FA1C6"
+
+[colors.search.focused_match]
+foreground = "#15130F"
+background = "#D2492F"
+
+[colors.hints.start]
+foreground = "#15130F"
+background = "#D2492F"
+
+[colors.hints.end]
+foreground = "#D2492F"
+background = "#2D2B26"
+
+[colors.footer_bar]
+foreground = "#E9E2D4"
+background = "#2D2B26"
+
+[colors.line_indicator]
+foreground = "#15130F"
+background = "#BDB6A8"
+
+[colors.vi_mode_cursor]
+text = "#15130F"
+cursor = "#7FA1C6"
+
+[colors.normal]
+black   = "#15130F"
+red     = "#E0583C"
+green   = "#8FA876"
+yellow  = "#C9A860"
+blue    = "#7FA1C6"
+magenta = "#B98AA6"
+cyan    = "#7DB3B0"
+white   = "#9A9386"
+
+[colors.bright]
+black   = "#6B655A"
+red     = "#EE7A5E"
+green   = "#A9C191"
+yellow  = "#DDC07E"
+blue    = "#9DBADB"
+magenta = "#CFA3BD"
+cyan    = "#9CCBC8"
+white   = "#E9E2D4"

@@ -1,0 +1,46 @@
+# Sumi kami terminal. Paper at 96%, compositor blur behind it.
+
+font-family = DM Mono
+font-family = JetBrainsMono Nerd Font
+font-family = Yuji Syuku
+font-size = 10.5
+adjust-cell-height = 30%
+window-padding-x = 16
+window-padding-y = 16
+window-decoration = none
+background-opacity = 0.96
+background-blur = true
+
+background = #F6F2EA
+foreground = #1F1D19
+cursor-color = #C8412B
+cursor-text = #F6F2EA
+cursor-style = bar
+cursor-style-blink = false
+selection-background = #E4E0D8
+selection-foreground = #16140F
+
+# Search and splits in the theme's colours (ghostty's stock yellow and orange otherwise).
+search-background = #2E4A6B
+search-foreground = #EEE8DC
+search-selected-background = #C8412B
+search-selected-foreground = #EEE8DC
+split-divider-color = #D6CFC2
+unfocused-split-fill = #EEE8DC
+
+palette = 0=#16140F
+palette = 1=#B3371F
+palette = 2=#4F6B3A
+palette = 3=#8A6A1F
+palette = 4=#2E4A6B
+palette = 5=#7A3B5E
+palette = 6=#2F6468
+palette = 7=#66615A
+palette = 8=#8C8578
+palette = 9=#C8412B
+palette = 10=#5F7F46
+palette = 11=#A07B25
+palette = 12=#3F5F86
+palette = 13=#8E4A70
+palette = 14=#3B7B80
+palette = 15=#3A3733

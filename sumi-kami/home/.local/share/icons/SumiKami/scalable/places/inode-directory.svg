@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><defs><filter id="rough" x="-10%" y="-10%" width="120%" height="120%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.22" numOctaves="2" seed="4" result="e"/>
+  <feDisplacementMap in="SourceGraphic" in2="e" scale="1.6" xChannelSelector="R" yChannelSelector="G"/>
+</filter>
+<filter id="wash" x="-10%" y="-10%" width="120%" height="120%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.16" numOctaves="3" seed="21" result="e"/>
+  <feDisplacementMap in="SourceGraphic" in2="e" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="s"/>
+  <feTurbulence type="fractalNoise" baseFrequency="0.07" numOctaves="2" seed="5" result="d"/>
+  <feColorMatrix in="d" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0.45" result="dA"/>
+  <feComposite in="s" in2="dA" operator="in" result="body"/>
+  <feGaussianBlur in="s" stdDeviation="0.35" result="soft"/>
+  <feComposite in="soft" in2="body" operator="arithmetic" k2="0.35" k3="0.75"/>
+</filter>
+<filter id="dry" x="-10%" y="-30%" width="120%" height="160%">
+  <feTurbulence type="fractalNoise" baseFrequency="0.25" numOctaves="2" seed="2" result="e"/>
+  <feDisplacementMap in="SourceGraphic" in2="e" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="s"/>
+  <feTurbulence type="fractalNoise" baseFrequency="0.03 1.1" numOctaves="2" seed="9" result="h"/>
+  <feColorMatrix in="h" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -0.9" result="hA"/>
+  <feComposite in="s" in2="hA" operator="in"/>
+</filter></defs><g filter="url(#wash)"><path d="M6 14 L24 14 L28 19 L58 19 L58 54 L6 54 Z" fill="#A39B8C"/></g><g filter="url(#wash)"><path d="M4 25 L60 24 L58 56 L6 56 Z" fill="#6E6961"/></g><g filter="url(#dry)"><path d="M5.00 25.50 L6.37 26.56 L7.68 26.81 L8.99 26.96 L10.29 26.89 L11.60 26.78 L12.91 26.68 L14.24 26.59 L15.57 26.50 L16.92 26.42 L18.26 26.35 L19.62 26.28 L20.98 26.21 L22.35 26.15 L23.72 26.10 L25.09 26.04 L26.47 25.99 L27.85 25.94 L29.24 25.90 L30.62 25.85 L32.01 25.81 L33.40 25.77 L34.78 25.73 L36.17 25.69 L37.55 25.65 L38.93 25.61 L40.31 25.56 L41.69 25.52 L43.06 25.47 L44.43 25.42 L45.80 25.37 L47.15 25.31 L48.51 25.26 L49.85 25.19 L51.19 25.12 L52.52 25.05 L53.84 24.97 L55.16 24.89 L56.46 24.80 L57.75 24.70 L59.03 24.60 L58.97 23.40 L57.69 23.44 L56.40 23.47 L55.10 23.50 L53.79 23.51 L52.47 23.53 L51.15 23.54 L49.81 23.54 L48.47 23.54 L47.12 23.53 L45.77 23.52 L44.41 23.51 L43.04 23.49 L41.67 23.47 L40.30 23.45 L38.92 23.43 L37.54 23.41 L36.15 23.38 L34.77 23.36 L33.38 23.34 L31.99 23.31 L30.60 23.29 L29.21 23.27 L27.83 23.25 L26.44 23.23 L25.05 23.22 L23.67 23.21 L22.29 23.20 L20.91 23.19 L19.54 23.19 L18.17 23.20 L16.81 23.21 L15.45 23.23 L14.10 23.25 L12.75 23.28 L11.41 23.31 L10.08 23.35 L8.76 23.45 L7.46 23.78 L6.19 24.22 L5.00 25.50 Z" fill="#16140F"/></g></svg>

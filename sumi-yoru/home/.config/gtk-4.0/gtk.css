@@ -1,0 +1,40 @@
+/* Sumi yoru for GTK4 / libadwaita: named colours only, so apps keep
+ * their own layout while picking up the palette. The accent is ink, not
+ * vermilion: libadwaita paints the accent on every switch and focus ring, and
+ * vermilion is kept for attention. Destructive and error are the seal red. */
+
+@define-color accent_color            #BDB6A8;
+@define-color accent_bg_color         #BDB6A8;
+@define-color accent_fg_color         #15130F;
+
+@define-color destructive_color       #E0583C;
+@define-color destructive_bg_color    #D2492F;
+@define-color destructive_fg_color    #F3ECDF;
+@define-color success_color           #8FA876;
+@define-color success_bg_color        #8FA876;
+@define-color warning_color           #C9A860;
+@define-color warning_bg_color        #C9A860;
+@define-color warning_fg_color        #15130F;
+@define-color error_color             #E0583C;
+@define-color error_bg_color          #D2492F;
+
+@define-color window_bg_color         #15130F;
+@define-color window_fg_color         #E9E2D4;
+@define-color view_bg_color           #1D1B17;
+@define-color view_fg_color           #E9E2D4;
+@define-color headerbar_bg_color      #1D1B17;
+@define-color headerbar_fg_color      #E9E2D4;
+@define-color headerbar_border_color  #332F29;
+@define-color headerbar_backdrop_color #15130F;
+@define-color sidebar_bg_color        #15130F;
+@define-color sidebar_fg_color        #E9E2D4;
+@define-color sidebar_border_color    #332F29;
+@define-color secondary_sidebar_bg_color #15130F;
+@define-color card_bg_color           #1D1B17;
+@define-color card_fg_color           #E9E2D4;
+@define-color dialog_bg_color         #1D1B17;
+@define-color dialog_fg_color         #E9E2D4;
+@define-color popover_bg_color        #1D1B17;
+@define-color popover_fg_color        #E9E2D4;
+@define-color thumbnail_bg_color      #2D2B26;
+@define-color borders                 #332F29;

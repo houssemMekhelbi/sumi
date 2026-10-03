@@ -1,0 +1,20 @@
+# Taskwarrior. Shown in waybar as "yawm" (~/.local/bin/waybar-yawm):
+#   click        list popup   (~/.local/bin/sumi-yawm -> sumi-yawm-menu)
+#   right-click  quick add    (~/.local/bin/sumi-yawm add)
+# Tasks tagged +note are notes: listed last, never counted in the bar.
+
+data.location=~/.local/share/task
+news.version=3.5.0
+editor=nvim
+weekstart=monday
+
+# Sumi kami colours (256-colour approximations): overdue in seal red,
+# due today in bold ink, notes in indigo.
+color.due.today=bold gray1
+color.due=gray6
+color.overdue=bold rgb300
+color.tag.note=rgb023
+color.active=rgb023
+color.header=gray8
+color.label=gray8
+color.footnote=gray12

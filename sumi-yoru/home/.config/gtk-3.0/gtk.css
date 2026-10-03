@@ -1,0 +1,314 @@
+/* Sumi yoru for GTK3, layered on Adwaita-dark.
+ * Paper surfaces, ink text, hairlines in sei. One selection language: a pale
+ * ink wash with a 2px vermilion rule on the left edge (sidebar, lists, menus).
+ * Thunar's current crumb and the selected file's name sit on a brush stroke
+ * (sumi-yoru/band.png from ~/.config/hypr/sumi-yoru/build-ink.py).
+ * Thunar-only widgets are targeted through its own style classes
+ * (.path-bar-button, .standard-view, .shortcuts-pane, .statusbar-text); there
+ * is no .thunar class. Opacity comes from Hyprland, so backgrounds are opaque. */
+
+@define-color sumi_ground  #15130F;
+@define-color sumi_raised  #1D1B17;
+@define-color sumi_sei     #332F29;
+@define-color sumi_tan     #5A554C;
+@define-color sumi_muted   #9A9386;
+@define-color sumi_struct  #BDB6A8;
+@define-color sumi_text    #E9E2D4;
+@define-color sumi_shu     #D2492F;
+@define-color sumi_ai      #7FA1C6;
+@define-color sumi_sel     #2D2B26;
+
+@define-color theme_bg_color          @sumi_ground;
+@define-color theme_fg_color          @sumi_text;
+@define-color theme_base_color        @sumi_raised;
+@define-color theme_text_color        @sumi_text;
+@define-color theme_selected_bg_color @sumi_sel;
+@define-color theme_selected_fg_color @sumi_text;
+@define-color insensitive_fg_color    @sumi_tan;
+@define-color borders                 @sumi_sei;
+
+* {
+    font-family: "Instrument Sans", "IBM Plex Sans Arabic", sans-serif;
+}
+
+/* ---- global: selection and scrollbars ------------------------------ */
+
+selection,
+*:selected,
+*:selected:focus {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+}
+
+scrollbar,
+scrollbar trough {
+    background: transparent;
+    border: none;
+}
+
+scrollbar slider {
+    min-width: 3px;
+    min-height: 3px;
+    border: none;
+    border-radius: 2px;
+    background-color: alpha(@sumi_struct, 0.35);
+}
+
+scrollbar slider:hover {
+    background-color: alpha(@sumi_struct, 0.6);
+}
+
+tooltip,
+tooltip.background {
+    background-color: alpha(@sumi_raised, 0.97);
+    border: 1px solid alpha(@sumi_struct, 0.35);
+    border-radius: 2px;
+    color: @sumi_text;
+}
+
+tooltip * {
+    color: @sumi_text;
+}
+
+/* ---- surfaces ---------------------------------------------------- */
+
+window.background,
+menubar,
+.toolbar,
+toolbar,
+statusbar,
+notebook,
+notebook header,
+paned {
+    background-color: @sumi_raised;
+    background-image: none;
+    color: @sumi_text;
+    box-shadow: none;
+}
+
+.view,
+iconview,
+treeview.view,
+textview text,
+scrolledwindow viewport {
+    background-color: @sumi_raised;
+    color: @sumi_text;
+}
+
+.sidebar,
+.sidebar .view,
+placessidebar,
+placessidebar list {
+    background-color: @sumi_ground;
+    color: @sumi_text;
+}
+
+menubar,
+.toolbar,
+toolbar {
+    border-bottom: 1px solid @sumi_sei;
+}
+
+menubar > menuitem {
+    color: @sumi_muted;
+}
+
+menubar > menuitem:hover {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+    box-shadow: inset 0 -2px @sumi_shu;
+}
+
+menu,
+.menu,
+.context-menu,
+popover,
+popover.background {
+    background-color: @sumi_raised;
+    border: 1px solid alpha(@sumi_struct, 0.35);
+    border-radius: 2px;
+    color: @sumi_text;
+}
+
+menu menuitem:hover,
+.menu menuitem:hover {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+    box-shadow: inset 2px 0 @sumi_shu;
+}
+
+entry {
+    background-color: @sumi_raised;
+    border: 1px solid @sumi_sei;
+    border-radius: 2px;
+    box-shadow: none;
+    color: @sumi_text;
+    caret-color: @sumi_text;
+}
+
+entry:focus {
+    border-color: @sumi_struct;
+}
+
+button {
+    border-radius: 2px;
+}
+
+paned > separator {
+    background: @sumi_sei;
+    background-image: none;
+    min-width: 1px;
+    min-height: 1px;
+}
+
+headerbar {
+    background: @sumi_raised;
+    border-bottom: 1px solid @sumi_sei;
+    border-radius: 0;
+    box-shadow: none;
+    color: @sumi_text;
+}
+
+/* ---- Thunar ------------------------------------------------------- */
+
+/* Path bar: segments in muted mono with a brush chevron after each; the
+ * current segment stands on a pale brush stroke. GTK3 CSS has no generated
+ * content, so the chevron is an image in each segment's right padding. */
+.path-bar-button {
+    background-color: transparent;
+    background-image: none;
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 10px 18px;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    color: @sumi_muted;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+    padding: 3px 18px 3px 4px;
+    margin: 0;
+    min-height: 0;
+}
+
+.path-bar .path-bar-button {
+    background-image: -gtk-scaled(url("sumi-yoru/chevron.png"));
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: 10px 18px;
+}
+
+.path-bar .path-bar-button:checked,
+.path-bar > .path-bar-button:nth-last-child(-n+2) {
+    background-image: none;
+}
+
+.path-bar-button:hover {
+    color: @sumi_text;
+}
+
+.path-bar .path-bar-button:checked {
+    background-image: url("sumi-yoru/band.png");
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    background-position: center;
+    color: @sumi_text;
+    font-weight: 500;
+    padding: 3px 14px;
+    margin-left: 4px;
+}
+
+.path-bar-button image {
+    color: @sumi_muted;
+    -gtk-icon-style: symbolic;
+}
+
+.toolbar button,
+toolbar button {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    color: @sumi_muted;
+}
+
+.toolbar button:hover,
+toolbar button:hover {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+}
+
+.toolbar button:disabled,
+toolbar button:disabled {
+    color: alpha(@sumi_tan, 0.6);
+}
+
+.shortcuts-pane {
+    border-right: 1px solid @sumi_sei;
+}
+
+/* Sidebar: plain 16px line icons; the current place gets the wash and the
+ * vermilion rule. */
+.sidebar .view {
+    padding: 3px 0;
+    font-size: 12px;
+}
+
+.sidebar .view:selected,
+.sidebar .view:selected:focus {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+    box-shadow: inset 2px 0 0 @sumi_shu;
+}
+
+.sidebar .view.cell:hover {
+    color: @sumi_text;
+}
+
+/* Icon view: the selected file's name stands on the brush stroke (the lower
+ * 30px of the cell); list view: wash + vermilion rule like the sidebar. */
+.standard-view iconview:selected,
+.standard-view iconview:selected:focus,
+.standard-view iconview.view:selected,
+.standard-view iconview.view:selected:focus {
+    background-color: transparent;
+    background-image: url("sumi-yoru/band.png");
+    background-repeat: no-repeat;
+    background-size: 100% 30px;
+    background-position: center bottom;
+    color: @sumi_text;
+    outline: none;
+    border-radius: 0;
+}
+
+.standard-view treeview.view:selected,
+.standard-view treeview.view:selected:focus {
+    background-color: @sumi_sel;
+    color: @sumi_text;
+    outline: none;
+    box-shadow: inset 2px 0 0 @sumi_shu;
+    border-radius: 0;
+}
+
+.standard-view treeview.view header button {
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid @sumi_sei;
+    color: @sumi_muted;
+    font-family: "Instrument Sans", sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+.split-view-inactive-pane {
+    opacity: 0.8;
+}
+
+/* Status bar: small mono in muted. */
+statusbar,
+.statusbar-text {
+    border-top: 1px solid @sumi_sei;
+    color: @sumi_muted;
+    font-family: "DM Mono", monospace;
+    font-size: 11px;
+}

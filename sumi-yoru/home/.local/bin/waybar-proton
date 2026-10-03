@@ -1,0 +1,13 @@
+#!/bin/sh
+
+vpn="$(
+    nmcli -t -f NAME,TYPE connection show --active 2>/dev/null |
+    awk -F: '$2 ~ /(wireguard|vpn)/ {print $1; exit}'
+)"
+
+if [ -n "$vpn" ]; then
+    printf '{"text":"VPN %s","class":"up","tooltip":"%s"}\n' \
+        "$vpn" "$vpn"
+else
+    printf '{"text":"VPN off","class":"down","tooltip":"No VPN profile active"}\n'
+fi

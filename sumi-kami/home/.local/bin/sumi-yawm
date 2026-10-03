@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Taskwarrior popups for the waybar "yawm" module, same paper frame as the
+# launcher (window rules sumi-yawm / sumi-yawm-add in hypr/sumi-kami.lua).
+#   sumi-yawm        task list  (click)
+#   sumi-yawm add    quick add  (right-click)
+# Running it again while that popup is open closes it.
+set -euo pipefail
+
+mode=${1:-list}
+if [[ $mode == add ]]; then
+    class=sumi-yawm-add title="Add task"
+else
+    class=sumi-yawm title="Yawm"
+fi
+
+if hyprctl clients -j | grep -q "\"class\": \"$class\""; then
+    hyprctl eval 'sumi_close_popups()' >/dev/null
+    exit 0
+fi
+
+exec foot \
+    --app-id="$class" \
+    --title="$title" \
+    -o main.pad=18x14 \
+    -o main.font="DM Mono:size=10.5" \
+    -o main.line-height=22 \
+    -o colors-dark.alpha=0.96 \
+    -o colors-light.alpha=0.96 \
+    "$HOME/.local/bin/sumi-yawm-menu" "$mode"

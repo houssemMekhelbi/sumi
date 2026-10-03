@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""fzf menu over XDG desktop entries, styled for Sumi kami.
+
+Rows:     Name  generic name          (vermilion left rule on the current row)
+Matches:  underlined in ink
+Counter:  "3 / 42" at the right of the prompt
+Order:    most launched first (~/.cache/girih-launcher/usage.json), then A–Z
+"""
+
+import configparser
+import json
+import os
+import shlex
+import subprocess
+import sys
+from pathlib import Path
+
+# Shared with the Girih launcher so the launch order survives a theme switch.
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "girih-launcher"
+USAGE = CACHE / "usage.json"
+DESKTOP = os.environ.get("XDG_CURRENT_DESKTOP", "Hyprland").split(":")
+
+HINT = "\x1b[38;2;163;155;140m"
+RESET = "\x1b[0m"
+
+
+def data_dirs():
+    home = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local/share"))
+    rest = os.environ.get("XDG_DATA_DIRS", "/usr/local/share:/usr/share").split(":")
+    return [home] + [Path(d) for d in rest if d]
+
+
+def entries():
+    seen = {}
+    for base in data_dirs():
+        root = base / "applications"
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob("*.desktop")):
+            app_id = str(path.relative_to(root)).replace("/", "-")
+            if app_id in seen:
+                continue
+            parser = configparser.RawConfigParser(interpolation=None, strict=False)
+            parser.optionxform = str
+            try:
+                parser.read(path, encoding="utf-8")
+                e = parser["Desktop Entry"]
+            except (configparser.Error, KeyError, UnicodeDecodeError):
+                seen[app_id] = None
+                continue
+            seen[app_id] = None
+            if e.get("Type") != "Application" or "Name" not in e:
+                continue
+            if e.get("NoDisplay", "").lower() == "true" or e.get("Hidden", "").lower() == "true":
+                continue
+            only = [d for d in e.get("OnlyShowIn", "").split(";") if d]
+            never = [d for d in e.get("NotShowIn", "").split(";") if d]
+            if (only and not set(only) & set(DESKTOP)) or set(never) & set(DESKTOP):
+                continue
+            seen[app_id] = {
+                "id": app_id,
+                "name": e["Name"],
+                "hint": e.get("GenericName", ""),
+                "terminal": e.get("Terminal", "").lower() == "true",
+                "exec": e.get("Exec", ""),
+            }
+    return [v for v in seen.values() if v]
+
+
+def load_usage():
+    try:
+        return json.loads(USAGE.read_text())
+    except (OSError, ValueError):
+        return {}
+
+
+def launch(app):
+    if app["terminal"]:
+        argv = [a for a in shlex.split(app["exec"]) if not (len(a) == 2 and a.startswith("%"))]
+        cmd = ["uwsm", "app", "--", "foot", "--"] + argv
+    else:
+        cmd = ["uwsm", "app", "--", app["id"]]
+    subprocess.Popen(
+        ["setsid", "-f"] + cmd,
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+
+def main():
+    apps = entries()
+    usage = load_usage()
+    apps.sort(key=lambda a: (-usage.get(a["id"], 0), a["name"].casefold()))
+    by_id = {a["id"]: a for a in apps}
+
+    lines = []
+    for a in apps:
+        hint = f"  {HINT}{a['hint']}{RESET}" if a["hint"] else ""
+        lines.append(f"{a['id']}\t{a['name']}{hint}")
+
+    fzf = [
+        "fzf",
+        "--ansi", "--delimiter=\t", "--with-nth=2", "--accept-nth=1",
+        "--layout=reverse", "--tiebreak=begin,index",
+        "--prompt=›  ", "--pointer=▎", "--gutter= ", "--marker=●",
+        "--highlight-line", "--no-scrollbar",
+        "--info=inline-right",
+        "--info-command=echo \"$FZF_MATCH_COUNT / $FZF_TOTAL_COUNT\"",
+        "--ghost=search",
+        "--input-border=bottom",
+        "--footer=RET launch    ESC close    C-J / C-K move",
+        "--color=" + ",".join([
+            "bg:-1", "bg+:#E4E0D8", "fg:#66615A", "fg+:#16140F:regular",
+            "hl:#3A3733:underline", "hl+:#B3371F:underline",
+            "prompt:#B3371F", "query:#16140F:regular", "ghost:#A39B8C",
+            "pointer:#B3371F", "gutter:-1", "marker:#B3371F",
+            "info:#66615A", "input-border:#D6CFC2",
+            "footer:#2E4A6B", "spinner:#3A3733", "separator:#D6CFC2",
+        ]),
+        "--bind=ctrl-j:down,ctrl-k:up,esc:abort",
+    ]
+    proc = subprocess.run(fzf, input="\n".join(lines), capture_output=False,
+                          stdout=subprocess.PIPE, text=True)
+    choice = proc.stdout.strip()
+    if proc.returncode != 0 or choice not in by_id:
+        return 0
+
+    usage[choice] = usage.get(choice, 0) + 1
+    CACHE.mkdir(parents=True, exist_ok=True)
+    USAGE.write_text(json.dumps(usage))
+    launch(by_id[choice])
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

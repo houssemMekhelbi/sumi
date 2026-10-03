@@ -1,0 +1,200 @@
+#!/usr/bin/env python3
+"""Per-monitor workspace state for Waybar.
+
+Listens on Hyprland's event socket and writes one JSON file per workspace slot
+per output:
+
+    $XDG_RUNTIME_DIR/hattin-ws/<output>/<slot>   slot 1..10
+    $XDG_RUNTIME_DIR/hattin-ws/<output>/x        workspaces of other monitors
+
+then sends SIGRTMIN+8 to Waybar so the custom/ws-* modules re-read them.
+Workspace blocks come from Hyprland's workspace rules (hypr/workspaces.lua).
+"""
+
+import json
+import os
+import select
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import time
+
+SIZE = 10
+ALWAYS_SHOWN = 5
+SIGNAL = int(signal.SIGRTMIN) + 8
+DEBOUNCE = 0.04
+
+# Events that only change titles or focus inside a workspace.
+IGNORED = {
+    "activewindow", "activewindowv2", "windowtitle", "windowtitlev2",
+    "activelayout", "submap", "screencast", "fullscreen", "changefloatingmode",
+    "pin", "minimized", "bell", "openlayer", "closelayer", "ignoregrouplock",
+    "lockgroups", "togglegroup", "moveintogroup", "moveoutofgroup",
+}
+
+# Sumi yoru glyphs: ink drops; state is carried by colour (waybar/style.css):
+# ring empty, pale wash occupied, muted on another monitor, full ink focused, seal red urgent.
+GLYPH = {"active": "●", "urgent": "●", "occupied": "●", "empty": "○"}
+FOREIGN = "◌"
+
+
+def hypr_dir():
+    sig = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE")
+    if not sig:
+        sys.exit("HYPRLAND_INSTANCE_SIGNATURE is not set")
+    return os.path.join(os.environ["XDG_RUNTIME_DIR"], "hypr", sig)
+
+
+def request(path, cmd):
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
+        s.connect(path)
+        s.sendall(cmd.encode())
+        chunks = []
+        while chunk := s.recv(65536):
+            chunks.append(chunk)
+    return json.loads(b"".join(chunks) or b"[]")
+
+
+class State:
+    def __init__(self, hdir, out):
+        self.sock = os.path.join(hdir, ".socket.sock")
+        self.out = out
+        self.urgent = set()
+        self.written = {}
+
+    def bases(self, monitors):
+        rules = request(self.sock, "j/workspacerules")
+        bases = {}
+        for rule in rules:
+            name, ws = rule.get("monitor"), rule.get("workspaceString", "")
+            if name and ws.isdigit():
+                bases[name] = min(bases.get(name, 10**9), int(ws) - 1)
+        for m in monitors:
+            bases.setdefault(m["name"], 30 + m["id"] * SIZE)
+        return bases
+
+    def mark_urgent(self, address):
+        for c in request(self.sock, "j/clients"):
+            if c["address"].removeprefix("0x") == address.removeprefix("0x"):
+                self.urgent.add(c["workspace"]["id"])
+
+    def refresh(self):
+        monitors = request(self.sock, "j/monitors")
+        workspaces = {w["id"]: w for w in request(self.sock, "j/workspaces") if w["id"] > 0}
+        bases = self.bases(monitors)
+        visible = {m["activeWorkspace"]["id"] for m in monitors}
+        self.urgent -= visible
+        self.urgent &= set(workspaces)
+
+        files = {}
+        for m in monitors:
+            name, base = m["name"], bases[m["name"]]
+            focused = m["focused"]
+            for slot in range(1, SIZE + 1):
+                wid = base + slot
+                ws = workspaces.get(wid)
+                if wid == m["activeWorkspace"]["id"]:
+                    state = "active"
+                elif wid in self.urgent:
+                    state = "urgent"
+                elif ws and ws["windows"] > 0:
+                    state = "occupied"
+                elif ws or slot <= ALWAYS_SHOWN:
+                    state = "empty"
+                else:
+                    files[(name, str(slot))] = ""
+                    continue
+                classes = [state] + (["focused"] if focused and state == "active" else [])
+                count = ws["windows"] if ws else 0
+                files[(name, str(slot))] = json.dumps({
+                    "text": GLYPH[state],
+                    "class": classes,
+                    "tooltip": f"Workspace {slot} · {count} window{'s' if count != 1 else ''}",
+                }, ensure_ascii=False)
+
+            foreign = sorted(
+                w["id"] for w in workspaces.values()
+                if w["monitor"] == name and not (base < w["id"] <= base + SIZE)
+            )
+            if foreign:
+                active = m["activeWorkspace"]["id"] in foreign
+                files[(name, "x")] = json.dumps({
+                    "text": FOREIGN * min(len(foreign), 3),
+                    "class": ["foreign"] + (["active"] if active else []),
+                    "tooltip": "From another monitor: " + ", ".join(map(str, foreign)),
+                }, ensure_ascii=False)
+            else:
+                files[(name, "x")] = ""
+
+        if files == self.written:
+            return False
+        for (name, slot), text in files.items():
+            if self.written.get((name, slot)) == text:
+                continue
+            d = os.path.join(self.out, name)
+            os.makedirs(d, exist_ok=True)
+            tmp = os.path.join(d, f".{slot}.tmp")
+            with open(tmp, "w") as f:
+                f.write(text)
+            os.replace(tmp, os.path.join(d, slot))
+        for gone in {n for n, _ in self.written} - {n for n, _ in files}:
+            shutil.rmtree(os.path.join(self.out, gone), ignore_errors=True)
+        self.written = files
+        return True
+
+
+def signal_waybar():
+    subprocess.run(["pkill", f"-{SIGNAL}", "-x", "waybar"], check=False)
+
+
+def main():
+    hdir = hypr_dir()
+    out = os.path.join(os.environ["XDG_RUNTIME_DIR"], "hattin-ws")
+    shutil.rmtree(out, ignore_errors=True)
+    os.makedirs(out, exist_ok=True)
+    state = State(hdir, out)
+
+    events = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    events.connect(os.path.join(hdir, ".socket2.sock"))
+
+    state.refresh()
+    signal_waybar()
+
+    buf = b""
+    pending = False
+    deadline = 0.0
+    while True:
+        timeout = max(0.0, deadline - time.monotonic()) if pending else None
+        ready, _, _ = select.select([events], [], [], timeout)
+        if ready:
+            chunk = events.recv(65536)
+            if not chunk:
+                sys.exit("Hyprland event socket closed")
+            buf += chunk
+            *lines, buf = buf.split(b"\n")
+            for line in lines:
+                name, _, data = line.decode(errors="replace").partition(">>")
+                if name in IGNORED:
+                    continue
+                if name == "urgent":
+                    try:
+                        state.mark_urgent(data)
+                    except OSError:
+                        pass
+                if not pending:
+                    pending = True
+                    deadline = time.monotonic() + DEBOUNCE
+        if not pending or time.monotonic() < deadline:
+            continue
+        pending = False
+        try:
+            if state.refresh():
+                signal_waybar()
+        except (OSError, ValueError, KeyError) as exc:
+            print(f"refresh failed: {exc}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
