@@ -57,8 +57,8 @@ sudo pacman -S --needed $(grep -v '^#' sumi-kami/packages.txt)
 > Everything it replaces is backed up first.
 
 ```sh
-git clone https://github.com/houssemMekhelbi/hattin-sumi.git
-cd hattin-sumi
+git clone https://github.com/houssemMekhelbi/sumi.git
+cd sumi
 ./sumi-kami/restore.sh --dry-run   # show what would change, touch nothing
 ./sumi-kami/restore.sh             # apply sumi-kami
 ./sumi-yoru/restore.sh             # or sumi-yoru
