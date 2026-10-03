@@ -76,6 +76,10 @@ if ((${#existing[@]})); then
     if ((!dry)); then
         mkdir -p "$backup"
         bsdtar -C "$HOME" -cf - "${existing[@]}" | bsdtar -C "$backup" -xpf -
+        # One switch backup per theme: the older ones go.
+        for old in "${backup%-*-*}"-[0-9]*; do
+            [[ -d $old && $old != "$backup" ]] && rm -rf "$old"
+        done
     fi
 else
     backup=

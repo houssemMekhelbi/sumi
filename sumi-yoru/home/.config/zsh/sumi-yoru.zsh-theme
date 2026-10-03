@@ -10,7 +10,7 @@
 
 setopt prompt_subst
 
-SUMI_DEFAULT_USER=${SUMI_DEFAULT_USER:-rahal}   # hide context on your own box
+SUMI_DEFAULT_USER=${SUMI_DEFAULT_USER:-$USER}   # hide context on your own box
 
 S_TEXT='#E9E2D4'  S_STRUCT='#BDB6A8' S_MUTED='#9A9386'
 S_TAN='#5A554C'    S_SHU='#E0583C'     S_AI='#7FA1C6'
